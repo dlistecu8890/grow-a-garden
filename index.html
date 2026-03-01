@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🌱 Grow Garden Online - 3D Farming</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --accent: #FF9800;
+            --gold: #FFD700;
+            --danger: #f44336;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: fixed;
+            z-index: 100;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-element {
+            pointer-events: auto;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .currency-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .currency-item {
+            background: rgba(255,255,255,0.95);
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 800;
+            font-size: 0.95em;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .currency-item.money { color: #F57F17; }
+        .currency-item.gems { color: #C2185B; }
+        .currency-item.level { color: #1565C0; }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.95);
+            padding: 8px 15px;
+            border-radius: 25px;
+        }
+
+        .avatar {
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+        }
+
+        /* Side Menu */
+        .side-menu {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .menu-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            border: none;
+            background: rgba(255,255,255,0.95);
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .menu-btn:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+
+        .menu-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .menu-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            font-size: 0.6em;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 800;
+        }
+
+        /* Bottom Toolbar */
+        .bottom-toolbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .tool-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            border: 3px solid transparent;
+            background: #f5f5f5;
+            font-size: 2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-btn:hover {
+            transform: translateY(-5px);
+            background: white;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .tool-btn.selected {
+            border-color: var(--primary);
+            background: #E8F5E9;
+            transform: scale(1.1);
+        }
+
+        .tool-name {
+            font-size: 0.5em;
+            font-weight: 700;
+            margin-top: 2px;
+            color: #333;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            pointer-events: auto;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 30px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 100px rgba(0,0,0,0.5);
+            animation: slideUp 0.4s;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            border-radius: 30px 30px 0 0;
+            position: relative;
+        }
+
+        .modal-header h2 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.8em;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .close-modal:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        /* Shop Grid */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .shop-item {
+            background: linear-gradient(145deg, #f5f5f5 0%, #ffffff 100%);
+            border: 3px solid #e0e0e0;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shop-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .shop-item.premium {
+            background: linear-gradient(145deg, #FFF8E1 0%, #FFECB3 100%);
+            border-color: var(--gold);
+        }
+
+        .shop-item.locked {
+            opacity: 0.6;
+            filter: grayscale(1);
+        }
+
+        .item-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .item-name {
+            font-weight: 800;
+            font-size: 1em;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .item-price {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        .item-price.premium {
+            color: #F57F17;
+        }
+
+        /* WhatsApp Payment Section */
+        .whatsapp-section {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .whatsapp-section h3 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .wa-number {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 1.3em;
+            font-weight: 800;
+            margin: 15px 0;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+
+        .wa-btn {
+            background: white;
+            color: #25D366;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .wa-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* Chat Bubble */
+        .chat-bubble {
+            position: absolute;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-size: 0.9em;
+            font-weight: 700;
+            color: #333;
+            pointer-events: none;
+            animation: float 3s ease-in-out infinite;
+            z-index: 50;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .chat-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s;
+        }
+
+        .loading-screen.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            width: 80px;
+            height: 80px;
+            border: 6px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: white;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5em;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border-left: 5px solid var(--primary);
+            transform: translateX(400px);
+            transition: all 0.4s;
+            z-index: 2000;
+            font-weight: 700;
+            max-width: 300px;
+            pointer-events: auto;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .side-menu {
+                right: 10px;
+                gap: 8px;
+            }
+            .menu-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+            .bottom-toolbar {
+                gap: 10px;
+                padding: 10px;
+            }
+            .tool-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5em;
+            }
+            .shop-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Player 3D Label */
+        .player-label {
+            position: absolute;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: 700;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loading">
+        <div class="loader"></div>
+        <div class="loading-text">Loading Garden...</div>
+    </div>
+
+    <!-- 3D Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI Layer -->
+    <div class="ui-layer">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="currency-group">
+                <div class="currency-item money">
+                    <span>💰</span>
+                    <span id="moneyDisplay">1,000</span>
+                </div>
+                <div class="currency-item gems">
+                    <span>💎</span>
+                    <span id="gemsDisplay">0</span>
+                </div>
+                <div class="currency-item level">
+                    <span>⭐</span>
+                    <span id="levelDisplay">1</span>
+                </div>
+            </div>
+            <div class="player-info">
+                <div class="avatar">👨‍🌾</div>
+                <div>
+                    <div style="font-weight: 800; font-size: 0.9em;">Farmer</div>
+                    <div style="font-size: 0.75em; color: #666;" id="onlineStatus">🟢 Online</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Side Menu -->
+        <div class="side-menu">
+            <button class="menu-btn ui-element" onclick="openShop()" title="Shop">
+                🛒
+                <span class="menu-badge" id="shopBadge" style="display: none;">!</span>
+            </button>
+            <button class="menu-btn ui-element" onclick="openSeeds()" title="Seeds">
+                🌰
+            </button>
+            <button class="menu-btn ui-element" onclick="openInventory()" title="Inventory">
+                🎒
+            </button>
+            <button class="menu-btn ui-element premium-btn" onclick="openPremium()" title="Premium" style="background: linear-gradient(135deg, #FFD700 0%, #FFA000 100%);">
+                💎
+                <span class="menu-badge">VIP</span>
+            </button>
+        </div>
+
+        <!-- Bottom Toolbar -->
+        <div class="bottom-toolbar">
+            <button class="tool-btn selected ui-element" onclick="selectTool('hand')" id="tool-hand">
+                ✋
+                <span class="tool-name">Hand</span>
+            </button>
+            <button class="tool-btn ui-element" onclick="selectTool('water')" id="tool-water">
+                💧
+                <span class="tool-name">Water</span>
+                <span class="menu-badge" id="waterCount">10</span>
+            </button>
+            <button class="tool-btn ui-element" onclick="selectTool('seed')" id="tool-seed">
+                🌱
+                <span class="tool-name">Plant</span>
+            </button>
+            <button class="tool-btn ui-element" onclick="selectTool('shovel')" id="tool-shovel">
+                ⛏️
+                <span class="tool-name">Dig</span>
+            </button>
+            <button class="tool-btn ui-element" onclick="selectTool('fertilizer')" id="tool-fertilizer">
+                ⚡
+                <span class="tool-name">Boost</span>
+                <span class="menu-badge" id="boostCount">3</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div class="modal-overlay" id="shopModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close-modal" onclick="closeModal('shopModal')">×</button>
+                <h2>🛒 Garden Shop</h2>
+                <p>Buy seeds and tools</p>
+            </div>
+            <div class="modal-body">
+                <div class="shop-grid" id="shopItems"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seeds Modal -->
+    <div class="modal-overlay" id="seedsModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8BC34A 0%, #558B2F 100%);">
+                <button class="close-modal" onclick="closeModal('seedsModal')">×</button>
+                <h2>🌰 Seed Shop</h2>
+                <p>Choose seeds to plant</p>
+            </div>
+            <div class="modal-body">
+                <div class="shop-grid" id="seedItems"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium Modal -->
+    <div class="modal-overlay" id="premiumModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #FFD700 0%, #F57F17 100%);">
+                <button class="close-modal" onclick="closeModal('premiumModal')">×</button>
+                <h2>💎 Premium Shop</h2>
+                <p>Upgrade your farming experience</p>
+            </div>
+            <div class="modal-body">
+                <div class="shop-grid" id="premiumItems"></div>
+                
+                <!-- WhatsApp Payment -->
+                <div class="whatsapp-section">
+                    <h3>📱 Order via WhatsApp</h3>
+                    <p style="margin-bottom: 10px; opacity: 0.9;">Hubungi admin untuk top up premium:</p>
+                    <div class="wa-number">0882-0214-8811-33</div>
+                    <p style="font-size: 0.9em; opacity: 0.8;">Konfirmasi manual 5-10 menit</p>
+                    <button class="wa-btn" onclick="openWhatsApp()">
+                        <span>💬</span>
+                        Chat WhatsApp
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // ==========================================
+        // GAME STATE & CONFIG
+        // ==========================================
+        const gameState = {
+            money: 1000,
+            gems: 0,
+            level: 1,
+            xp: 0,
+            selectedTool: 'hand',
+            selectedSeed: null,
+            inventory: {
+                water: 10,
+                fertilizer: 3,
+                seeds: {}
+            },
+            plots: [],
+            players: {}, // Other players in multiplayer
+            myPlayer: {
+                id: 'player_' + Math.random().toString(36).substr(2, 9),
+                name: 'Farmer',
+                x: 0,
+                z: 0,
+                rotation: 0,
+                action: 'idle'
+            }
+        };
+
+        const SEEDS = [
+            { id: 'wheat', name: 'Wheat', emoji: '🌾', price: 10, sellPrice: 18, growTime: 5000, xp: 5, unlockLevel: 1, color: 0xFFD700 },
+            { id: 'carrot', name: 'Carrot', emoji: '🥕', price: 25, sellPrice: 45, growTime: 8000, xp: 10, unlockLevel: 1, color: 0xFF6B35 },
+            { id: 'corn', name: 'Corn', emoji: '🌽', price: 50, sellPrice: 95, growTime: 12000, xp: 20, unlockLevel: 2, color: 0xFFEB3B },
+            { id: 'rose', name: 'Rose', emoji: '🌹', price: 100, sellPrice: 200, growTime: 20000, xp: 35, unlockLevel: 3, color: 0xE91E63 },
+            { id: 'sunflower', name: 'Sunflower', emoji: '🌻', price: 200, sellPrice: 450, growTime: 30000, xp: 60, unlockLevel: 5, color: 0xFFC107 },
+            { id: 'tree', name: 'Oak Tree', emoji: '🌳', price: 500, sellPrice: 1200, growTime: 60000, xp: 150, unlockLevel: 10, color: 0x4CAF50, isTree: true }
+        ];
+
+        const PREMIUM_ITEMS = [
+            { id: 'water_pack', name: 'Water Package', emoji: '💧', price: 3000, realPrice: 'Rp 3.000', description: '10x Watering Cans', waMessage: 'Halo, saya mau beli Water Package 10x watering Rp 3.000' },
+            { id: 'speed_pack', name: 'Speed Grow', emoji: '⚡', price: 5000, realPrice: 'Rp 5.000', description: '3x Instant Growth', waMessage: 'Halo, saya mau beli Speed Grow 3x Rp 5.000' },
+            { id: 'harvest_pack', name: 'Harvest All', emoji: '🌾', price: 1000, realPrice: 'Rp 1.000', description: '5x Harvest All', waMessage: 'Halo, saya mau beli Harvest All 5x Rp 1.000' },
+            { id: 'storm_pack', name: 'Storm Control', emoji: '⛈️', price: 2000, realPrice: 'Rp 2.000', description: '5x Storm Toggle', waMessage: 'Halo, saya mau beli Storm Control 5x Rp 2.000' },
+            { id: 'vip', name: 'VIP Membership', emoji: '👑', price: 50000, realPrice: 'Rp 50.000', description: '30 Days Unlimited All', isVIP: true, waMessage: 'Halo, saya mau beli VIP Membership 30 hari Rp 50.000' }
+        ];
+
+        // ==========================================
+        // THREE.JS SETUP
+        // ==========================================
+        let scene, camera, renderer, controls;
+        let raycaster, mouse;
+        let ground, plots = [];
+        let playerMesh, otherPlayers = {};
+        let clock = new THREE.Clock();
+
+        function init3D() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 100);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 20);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x7CB342 });
+            ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Grid of plots
+            createGardenPlots();
+
+            // Player character
+            createPlayer();
+
+            // Decorations
+            createDecorations();
+
+            // Raycaster for interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.2;
+            controls.minDistance = 10;
+            controls.maxDistance = 50;
+
+            // Events
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('click', onMouseClick);
+            renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
+
+            // Start loop
+            animate();
+
+            // Hide loading
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hide');
+            }, 2000);
+        }
+
+        function createGardenPlots() {
+            const plotSize = 3;
+            const gap = 0.5;
+            const rows = 4;
+            const cols = 4;
+            const startX = -((cols * (plotSize + gap)) / 2) + plotSize / 2;
+            const startZ = -((rows * (plotSize + gap)) / 2) + plotSize / 2;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const x = startX + col * (plotSize + gap);
+                    const z = startZ + row * (plotSize + gap);
+
+                    // Plot base (soil)
+                    const geometry = new THREE.BoxGeometry(plotSize, 0.5, plotSize);
+                    const material = new THREE.MeshLambertMaterial({ color: 0x5D4037 });
+                    const plot = new THREE.Mesh(geometry, material);
+                    plot.position.set(x, 0.25, z);
+                    plot.receiveShadow = true;
+                    plot.castShadow = true;
+                    plot.userData = { type: 'plot', id: row * cols + col, x, z };
+                    scene.add(plot);
+
+                    // Plot border
+                    const borderGeo = new THREE.BoxGeometry(plotSize + 0.2, 0.6, plotSize + 0.2);
+                    const borderMat = new THREE.MeshLambertMaterial({ color: 0x3E2723 });
+                    const border = new THREE.Mesh(borderGeo, borderMat);
+                    border.position.set(x, 0.2, z);
+                    scene.add(border);
+
+                    gameState.plots.push({
+                        id: row * cols + col,
+                        mesh: plot,
+                        x, z,
+                        plant: null,
+                        growth: 0,
+                        watered: false,
+                        meshPlant: null
+                    });
+                }
+            }
+        }
+
+        function createPlayer() {
+            const group = new THREE.Group();
+
+            // Body
+            const bodyGeo = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0xFF6B6B });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            group.add(body);
+
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const headMat = new THREE.MeshLambertMaterial({ color: 0xFFCCBC });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2;
+            head.castShadow = true;
+            group.add(head);
+
+            // Hat
+            const hatGeo = new THREE.ConeGeometry(0.5, 0.5, 16);
+            const hatMat = new THREE.MeshLambertMaterial({ color: 0x8D6E63 });
+            const hat = new THREE.Mesh(hatGeo, hatMat);
+            hat.position.y = 2.4;
+            group.add(hat);
+
+            // Arms
+            const armGeo = new THREE.CapsuleGeometry(0.15, 0.6, 4, 8);
+            const armMat = new THREE.MeshLambertMaterial({ color: 0xFFCCBC });
+            
+            const leftArm = new THREE.Mesh(armGeo, armMat);
+            leftArm.position.set(-0.6, 1.2, 0);
+            leftArm.rotation.z = Math.PI / 4;
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, armMat);
+            rightArm.position.set(0.6, 1.2, 0);
+            rightArm.rotation.z = -Math.PI / 4;
+            group.add(rightArm);
+
+            group.position.set(8, 0, 8);
+            scene.add(group);
+            playerMesh = group;
+
+            // Add name label
+            createPlayerLabel(gameState.myPlayer.name, group);
+        }
+
+        function createPlayerLabel(name, parent) {
+            const div = document.createElement('div');
+            div.className = 'player-label';
+            div.textContent = name;
+            document.body.appendChild(div);
+            
+            // Update position in animate loop
+            parent.userData.label = div;
+        }
+
+        function createDecorations() {
+            // Trees around the garden
+            const treePositions = [
+                [-15, -15], [15, -15], [-15, 15], [15, 15],
+                [-20, 0], [20, 0], [0, -20], [0, 20]
+            ];
+
+            treePositions.forEach(pos => {
+                createTree(pos[0], pos[1]);
+            });
+
+            // Fence
+            createFence();
+        }
+
+        function createTree(x, z) {
+            const group = new THREE.Group();
+
+            // Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 3, 8);
+            const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5D4037 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 1.5;
+            trunk.castShadow = true;
+            group.add(trunk);
+
+            // Leaves
+            const leavesGeo = new THREE.ConeGeometry(2.5, 5, 8);
+            const leavesMat = new THREE.MeshLambertMaterial({ color: 0x2E7D32 });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 4.5;
+            leaves.castShadow = true;
+            group.add(leaves);
+
+            group.position.set(x, 0, z);
+            scene.add(group);
+        }
+
+        function createFence() {
+            const fenceRadius = 18;
+            const fenceCount = 32;
+            
+            for (let i = 0; i < fenceCount; i++) {
+                const angle = (i / fenceCount) * Math.PI * 2;
+                const x = Math.cos(angle) * fenceRadius;
+                const z = Math.sin(angle) * fenceRadius;
+
+                const postGeo = new THREE.BoxGeometry(0.3, 2, 0.3);
+                const postMat = new THREE.MeshLambertMaterial({ color: 0x8D6E63 });
+                const post = new THREE.Mesh(postGeo, postMat);
+                post.position.set(x, 1, z);
+                post.castShadow = true;
+                scene.add(post);
+            }
+        }
+
+        function createPlantOnPlot(plot, seedType) {
+            const seed = SEEDS.find(s => s.id === seedType);
+            if (!seed) return;
+
+            // Remove existing plant
+            if (plot.meshPlant) {
+                scene.remove(plot.meshPlant);
+            }
+
+            const group = new THREE.Group();
+            group.position.set(plot.x, 0.5, plot.z);
+
+            if (seed.isTree) {
+                // Small tree version
+                const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 1, 6);
+                const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5D4037 });
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.y = 0.5;
+                trunk.castShadow = true;
+                group.add(trunk);
+
+                const leavesGeo = new THREE.ConeGeometry(1, 2, 8);
+                const leavesMat = new THREE.MeshLambertMaterial({ color: seed.color });
+                const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                leaves.position.y = 1.5;
+                leaves.castShadow = true;
+                group.add(leaves);
+            } else {
+                // Regular plant
+                const stemGeo = new THREE.CylinderGeometry(0.05, 0.1, 0.8, 6);
+                const stemMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+                const stem = new THREE.Mesh(stemGeo, stemMat);
+                stem.position.y = 0.4;
+                stem.castShadow = true;
+                group.add(stem);
+
+                // Flower/fruit
+                const flowerGeo = new THREE.SphereGeometry(0.3, 8, 8);
+                const flowerMat = new THREE.MeshLambertMaterial({ color: seed.color });
+                const flower = new THREE.Mesh(flowerGeo, flowerMat);
+                flower.position.y = 0.9;
+                flower.castShadow = true;
+                group.add(flower);
+            }
+
+            // Scale based on growth
+            const scale = 0.3 + (plot.growth / 100) * 0.7;
+            group.scale.set(scale, scale, scale);
+
+            scene.add(group);
+            plot.meshPlant = group;
+            plot.plant = seedType;
+        }
+
+        // ==========================================
+        // GAME LOGIC
+        // ==========================================
+        function onMouseClick(event) {
+            event.preventDefault();
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                if (obj.userData.type === 'plot') {
+                    handlePlotClick(obj.userData.id);
+                }
+            }
+        }
+
+        function onTouchStart(event) {
+            if (event.touches.length === 1) {
+                const touch = event.touches[0];
+                mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children, true);
+
+                if (intersects.length > 0) {
+                    const obj = intersects[0].object;
+                    if (obj.userData.type === 'plot') {
+                        handlePlotClick(obj.userData.id);
+                    }
+                }
+            }
+        }
+
+        function handlePlotClick(plotId) {
+            const plot = gameState.plots[plotId];
+            
+            switch(gameState.selectedTool) {
+                case 'hand':
+                    if (plot.plant && plot.growth >= 100) {
+                        harvestPlant(plotId);
+                    } else if (!plot.plant) {
+                        showNotification('Select seed tool to plant!', 'warning');
+                    }
+                    break;
+                case 'water':
+                    if (gameState.inventory.water > 0 && plot.plant && !plot.watered) {
+                        waterPlant(plotId);
+                    } else if (gameState.inventory.water <= 0) {
+                        showNotification('Out of water! Buy from Premium Shop', 'error');
+                        openPremium();
+                    }
+                    break;
+                case 'seed':
+                    if (gameState.selectedSeed && !plot.plant) {
+                        plantSeed(plotId);
+                    } else {
+                        openSeeds();
+                    }
+                    break;
+                case 'shovel':
+                    if (plot.plant) {
+                        removePlant(plotId);
+                    }
+                    break;
+                case 'fertilizer':
+                    if (gameState.inventory.fertilizer > 0 && plot.plant && plot.growth < 100) {
+                        fertilizePlant(plotId);
+                    } else if (gameState.inventory.fertilizer <= 0) {
+                        showNotification('Out of fertilizer! Buy from Premium Shop', 'error');
+                        openPremium();
+                    }
+                    break;
+            }
+        }
+
+        function plantSeed(plotId) {
+            const plot = gameState.plots[plotId];
+            const seed = SEEDS.find(s => s.id === gameState.selectedSeed);
+            
+            if (!seed) return;
+            if (gameState.money < seed.price) {
+                showNotification('Not enough money!', 'error');
+                return;
+            }
+
+            gameState.money -= seed.price;
+            plot.plant = seed.id;
+            plot.growth = 0;
+            plot.watered = false;
+            plot.plantedAt = Date.now();
+
+            createPlantOnPlot(plot, seed.id);
+            updateUI();
+            showNotification(`Planted ${seed.name}!`, 'success');
+            
+            // Animate player
+            animatePlayerAction('plant');
+        }
+
+        function waterPlant(plotId) {
+            const plot = gameState.plots[plotId];
+            gameState.inventory.water--;
+            plot.watered = true;
+            
+            // Visual effect
+            createWaterEffect(plot.x, plot.z);
+            updateUI();
+            showNotification('Plant watered! 💧');
+            
+            // Start growth if not already
+            if (!plot.growthInterval) {
+                startGrowth(plotId);
+            }
+        }
+
+        function startGrowth(plotId) {
+            const plot = gameState.plots[plotId];
+            const seed = SEEDS.find(s => s.id === plot.plant);
+            
+            plot.growthInterval = setInterval(() => {
+                if (!plot.watered) return;
+                
+                plot.growth += (100 / (seed.growTime / 100));
+                if (plot.growth >= 100) {
+                    plot.growth = 100;
+                    clearInterval(plot.growthInterval);
+                    plot.growthInterval = null;
+                    showNotification(`${seed.name} is ready to harvest! 🌾`, 'success');
+                }
+                
+                // Update visual
+                if (plot.meshPlant) {
+                    const scale = 0.3 + (plot.growth / 100) * 0.7;
+                    plot.meshPlant.scale.set(scale, scale, scale);
+                }
+            }, 100);
+        }
+
+        function harvestPlant(plotId) {
+            const plot = gameState.plots[plotId];
+            const seed = SEEDS.find(s => s.id === plot.plant);
+            
+            const earnings = seed.sellPrice;
+            gameState.money += earnings;
+            gameState.xp += seed.xp;
+            
+            // Remove plant
+            scene.remove(plot.meshPlant);
+            plot.meshPlant = null;
+            plot.plant = null;
+            plot.growth = 0;
+            plot.watered = false;
+            
+            // Coin effect
+            createCoinEffect(plot.x, plot.z);
+            
+            updateUI();
+            checkLevelUp();
+            showNotification(`Harvested ${seed.name}! +${earnings}💰`, 'success');
+        }
+
+        function fertilizePlant(plotId) {
+            const plot = gameState.plots[plotId];
+            gameState.inventory.fertilizer--;
+            plot.growth = Math.min(plot.growth + 30, 100);
+            
+            if (plot.meshPlant) {
+                const scale = 0.3 + (plot.growth / 100) * 0.7;
+                plot.meshPlant.scale.set(scale, scale, scale);
+            }
+            
+            createFertilizerEffect(plot.x, plot.z);
+            updateUI();
+            showNotification('Growth boosted! ⚡');
+        }
+
+        function removePlant(plotId) {
+            const plot = gameState.plots[plotId];
+            scene.remove(plot.meshPlant);
+            plot.meshPlant = null;
+            plot.plant = null;
+            plot.growth = 0;
+            plot.watered = false;
+            showNotification('Plant removed');
+        }
+
+        // ==========================================
+        // VISUAL EFFECTS
+        // ==========================================
+        function createWaterEffect(x, z) {
+            const particleCount = 20;
+            for (let i = 0; i < particleCount; i++) {
+                const geo = new THREE.SphereGeometry(0.1, 4, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x2196F3 });
+                const particle = new THREE.Mesh(geo, mat);
+                
+                particle.position.set(
+                    x + (Math.random() - 0.5) * 2,
+                    3 + Math.random() * 2,
+                    z + (Math.random() - 0.5) * 2
+                );
+                
+                scene.add(particle);
+                
+                // Animate
+                const velocity = -0.1 - Math.random() * 0.1;
+                const animate = () => {
+                    particle.position.y += velocity;
+                    if (particle.position.y < 0.5) {
+                        scene.remove(particle);
+                    } else {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                animate();
+            }
+        }
+
+        function createCoinEffect(x, z) {
+            for (let i = 0; i < 10; i++) {
+                const geo = new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+                const coin = new THREE.Mesh(geo, mat);
+                coin.rotation.x = Math.PI / 2;
+                
+                coin.position.set(x, 1, z);
+                scene.add(coin);
+                
+                const velocity = {
+                    x: (Math.random() - 0.5) * 0.3,
+                    y: 0.3 + Math.random() * 0.2,
+                    z: (Math.random() - 0.5) * 0.3
+                };
+                
+                let life = 60;
+                const animate = () => {
+                    coin.position.x += velocity.x;
+                    coin.position.y += velocity.y;
+                    coin.position.z += velocity.z;
+                    velocity.y -= 0.01;
+                    coin.rotation.y += 0.1;
+                    
+                    life--;
+                    if (life <= 0 || coin.position.y < 0) {
+                        scene.remove(coin);
+                    } else {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                animate();
+            }
+        }
+
+        function createFertilizerEffect(x, z) {
+            const particleCount = 15;
+            for (let i = 0; i < particleCount; i++) {
+                const geo = new THREE.SphereGeometry(0.15, 4, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xFFEB3B });
+                const particle = new THREE.Mesh(geo, mat);
+                
+                particle.position.set(x, 0.5, z);
+                scene.add(particle);
+                
+                const angle = (i / particleCount) * Math.PI * 2;
+                const speed = 0.2;
+                const velocity = {
+                    x: Math.cos(angle) * speed,
+                    y: 0.3,
+                    z: Math.sin(angle) * speed
+                };
+                
+                let life = 40;
+                const animate = () => {
+                    particle.position.x += velocity.x;
+                    particle.position.y += velocity.y;
+                    particle.position.z += velocity.z;
+                    velocity.y -= 0.01;
+                    
+                    life--;
+                    if (life <= 0) {
+                        scene.remove(particle);
+                    } else {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                animate();
+            }
+        }
+
+        function animatePlayerAction(action) {
+            // Simple animation
+            const startY = playerMesh.position.y;
+            let frame = 0;
+            
+            const animate = () => {
+                frame++;
+                playerMesh.position.y = startY + Math.sin(frame * 0.3) * 0.5;
+                playerMesh.rotation.y += 0.2;
+                
+                if (frame < 20) {
+                    requestAnimationFrame(animate);
+                } else {
+                    playerMesh.position.y = startY;
+                }
+            };
+            animate();
+        }
+
+        // ==========================================
+        // UI FUNCTIONS
+        // ==========================================
+        function selectTool(tool) {
+            gameState.selectedTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`tool-${tool}`).classList.add('selected');
+        }
+
+        function openShop() {
+            populateShop();
+            document.getElementById('shopModal').classList.add('show');
+        }
+
+        function openSeeds() {
+            populateSeeds();
+            document.getElementById('seedsModal').classList.add('show');
+        }
+
+        function openInventory() {
+            showNotification('Inventory feature coming soon!', 'warning');
+        }
+
+        function openPremium() {
+            populatePremium();
+            document.getElementById('premiumModal').classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function populateShop() {
+            const container = document.getElementById('shopItems');
+            container.innerHTML = '';
+            
+            const items = [
+                { emoji: '💧', name: 'Water x5', price: 50, type: 'water' },
+                { emoji: '⚡', name: 'Fertilizer', price: 100, type: 'fertilizer' },
+                { emoji: '🎒', name: 'Extra Slot', price: 500, type: 'slot' }
+            ];
+            
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = `
+                    <span class="item-icon">${item.emoji}</span>
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">${item.price} 💰</div>
+                `;
+                div.onclick = () => buyItem(item);
+                container.appendChild(div);
+            });
+        }
+
+        function populateSeeds() {
+            const container = document.getElementById('seedItems');
+            container.innerHTML = '';
+            
+            SEEDS.forEach(seed => {
+                const div = document.createElement('div');
+                const locked = gameState.level < seed.unlockLevel;
+                div.className = 'shop-item' + (locked ? ' locked' : '');
+                div.innerHTML = `
+                    <span class="item-icon">${seed.emoji}</span>
+                    <div class="item-name">${seed.name}</div>
+                    <div class="item-price">${locked ? 'Lvl ' + seed.unlockLevel : seed.price + ' 💰'}</div>
+                `;
+                if (!locked) {
+                    div.onclick = () => selectSeed(seed.id);
+                }
+                container.appendChild(div);
+            });
+        }
+
+        function populatePremium() {
+            const container = document.getElementById('premiumItems');
+            container.innerHTML = '';
+            
+            PREMIUM_ITEMS.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'shop-item premium' + (item.isVIP ? ' vip' : '');
+                div.innerHTML = `
+                    ${item.isVIP ? '<span class="menu-badge">BEST</span>' : ''}
+                    <span class="item-icon">${item.emoji}</span>
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-desc" style="font-size: 0.8em; color: #666; margin: 5px 0;">${item.description}</div>
+                    <div class="item-price premium">${item.realPrice}</div>
+                `;
+                div.onclick = () => selectPremiumItem(item);
+                container.appendChild(div);
+            });
+        }
+
+        function selectSeed(seedId) {
+            gameState.selectedSeed = seedId;
+            gameState.selectedTool = 'seed';
+            selectTool('seed');
+            closeModal('seedsModal');
+            showNotification(`Selected ${SEEDS.find(s => s.id === seedId).name} seeds!`);
+        }
+
+        function selectPremiumItem(item) {
+            const message = encodeURIComponent(item.waMessage + '\n\nPlayer ID: ' + gameState.myPlayer.id + '\nTimestamp: ' + new Date().toLocaleString());
+            const waLink = `https://wa.me/628820214881133?text=${message}`;
+            
+            if (confirm(`Order ${item.name} for ${item.realPrice}?\n\nYou will be redirected to WhatsApp to complete payment.`)) {
+                window.open(waLink, '_blank');
+            }
+        }
+
+        function openWhatsApp() {
+            const message = encodeURIComponent('Halo, saya mau order premium item untuk Grow Garden\n\nPlayer ID: ' + gameState.myPlayer.id);
+            window.open(`https://wa.me/628820214881133?text=${message}`, '_blank');
+        }
+
+        function buyItem(item) {
+            if (gameState.money >= item.price) {
+                gameState.money -= item.price;
+                if (item.type === 'water') gameState.inventory.water += 5;
+                if (item.type === 'fertilizer') gameState.inventory.fertilizer += 1;
+                updateUI();
+                showNotification(`Bought ${item.name}!`);
+            } else {
+                showNotification('Not enough money!', 'error');
+            }
+        }
+
+        function checkLevelUp() {
+            const newLevel = Math.floor(gameState.xp / 100) + 1;
+            if (newLevel > gameState.level) {
+                gameState.level = newLevel;
+                showNotification(`🎉 Level Up! You are now level ${newLevel}!`, 'success');
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('moneyDisplay').textContent = gameState.money.toLocaleString();
+            document.getElementById('gemsDisplay').textContent = gameState.gems;
+            document.getElementById('levelDisplay').textContent = gameState.level;
+            document.getElementById('waterCount').textContent = gameState.inventory.water;
+            document.getElementById('boostCount').textContent = gameState.inventory.fertilizer;
+        }
+
+        function showNotification(message, type = 'success') {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.style.borderLeftColor = type === 'error' ? '#f44336' : type === 'warning' ? '#FF9800' : '#4CAF50';
+            notif.classList.add('show');
+            setTimeout(() => notif.classList.remove('show'), 3000);
+        }
+
+        // ==========================================
+        // MULTIPLAYER SIMULATION
+        // ==========================================
+        function simulateOtherPlayers() {
+            // Add fake players for demonstration
+            const fakePlayers = [
+                { name: 'Alice', x: -5, z: -5, color: 0x9C27B0 },
+                { name: 'Bob', x: 5, z: -8, color: 0x2196F3 }
+            ];
+            
+            fakePlayers.forEach((p, idx) => {
+                setTimeout(() => {
+                    createOtherPlayer(p);
+                }, idx * 2000);
+            });
+        }
+
+        function createOtherPlayer(data) {
+            const group = new THREE.Group();
+            
+            const bodyGeo = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
+            const bodyMat = new THREE.MeshLambertMaterial({ color: data.color });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            group.add(body);
+            
+            const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const headMat = new THREE.MeshLambertMaterial({ color: 0xFFCCBC });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2;
+            group.add(head);
+            
+            group.position.set(data.x, 0, data.z);
+            scene.add(group);
+            
+            createPlayerLabel(data.name, group);
+            otherPlayers[data.name] = group;
+            
+            // Animate randomly
+            setInterval(() => {
+                const newX = data.x + (Math.random() - 0.5) * 4;
+                const newZ = data.z + (Math.random() - 0.5) * 4;
+                
+                // Smooth move
+                const startX = group.position.x;
+                const startZ = group.position.z;
+                let progress = 0;
+                
+                const move = () => {
+                    progress += 0.02;
+                    if (progress <= 1) {
+                        group.position.x = startX + (newX - startX) * progress;
+                        group.position.z = startZ + (newZ - startZ) * progress;
+                        group.lookAt(newX, 0, newZ);
+                        requestAnimationFrame(move);
+                    }
+                };
+                move();
+            }, 5000);
+        }
+
+        // ==========================================
+        // MAIN LOOP
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = clock.getDelta();
+            
+            // Update controls
+            controls.update();
+            
+            // Update player labels
+            scene.traverse(obj => {
+                if (obj.userData.label && obj.position) {
+                    const vector = obj.position.clone();
+                    vector.y += 2.5;
+                    vector.project(camera);
+                    
+                    const x = (vector.x * .5 + .5) * window.innerWidth;
+                    const y = (-(vector.y * .5) + .5) * window.innerHeight;
+                    
+                    obj.userData.label.style.left = x + 'px';
+                    obj.userData.label.style.top = y + 'px';
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Initialize
+        window.onload = () => {
+            init3D();
+            simulateOtherPlayers();
+            
+            // Auto-save
+            setInterval(() => {
+                localStorage.setItem('growGardenSave', JSON.stringify({
+                    money: gameState.money,
+                    level: gameState.level,
+                    xp: gameState.xp,
+                    inventory: gameState.inventory
+                }));
+            }, 30000);
+        };
+    </script>
+</body>
+</html>
